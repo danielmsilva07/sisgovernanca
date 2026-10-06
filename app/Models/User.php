@@ -2,44 +2,35 @@
 
 namespace App\Models;
 
-use Config\Database;
-use PDO;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 
-class User
+class User extends Authenticatable
 {
-    private PDO $db;
+    use Notifiable;
 
-    public function __construct()
+    protected $table = 'users';
+    protected $primaryKey = 'id_user'; // Define a chave primária customizada do PostgreSQL
+
+    protected $fillable = [
+        'name',
+        'email',
+        'username',
+        'password_hash',
+        'two_factor_secret',
+        'two_factor_enabled',
+    ];
+
+    protected $hidden = [
+        'password_hash',
+        'remember_token',
+    ];
+
+    /**
+     * Informa ao Laravel para utilizar a coluna 'password_hash' no lugar do padrão 'password'
+     */
+    public function getAuthPassword()
     {
-        $this->db = Database::getConnection();
-    }
-
-    public function findByUsername(string $username): ?array
-    {
-        $stmt = $this->db->prepare("SELECT * FROM users WHERE username = :username LIMIT 1");
-        $stmt->bindValue(':username', $username);
-        $stmt->execute();
-
-        $user = $stmt->fetch();
-        return $user ?: null;
-    }
-
-    public function findById(int $id): ?array
-    {
-        $stmt = $this->db->prepare("SELECT * FROM users WHERE id_user = :id_user LIMIT 1");
-        $stmt->bindValue(':id_user', $id, PDO::PARAM_INT);
-        $stmt->execute();
-
-        $user = $stmt->fetch();
-        return $user ?: null;
-    }
-
-    // Método para atualização da chave secreta
-    public function save2FASecret(int $userId, string $secret): bool
-    {
-        $stmt = $this->db->prepare("UPDATE users SET two_factor_secret = :secret, two_factor_enabled = TRUE WHERE id_user = :id_user");
-        $stmt->bindValue(':secret', $secret);
-        $stmt->bindValue(':id_user', $userId, PDO::PARAM_INT);
-        return $stmt->execute();
+        return $this->password_hash;
     }
 }

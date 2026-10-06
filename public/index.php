@@ -1,47 +1,20 @@
 <?php
 
-// Define a raiz do projeto
-define('ROOT_PATH', dirname(__DIR__));
+use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
 
-// --- TRATAMENTO DE ARQUIVOS ESTÁTICOS (CSS, JS, IMAGENS) ---
-// Se o recurso solicitado for um arquivo físico existente dentro da pasta 'public', serve diretamente.
-$publicDir = __DIR__; // Como este index.php está dentro da pasta 'public'
-$requestedFile = $publicDir . parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+define('LARAVEL_START', microtime(true));
 
-if (is_file($requestedFile)) {
-    return false; // Instrução nativa do PHP para entregar o arquivo estático
+// Determine if the application is in maintenance mode...
+if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
+    require $maintenance;
 }
 
-// Autoload nativo das classes
-spl_autoload_register(function ($class) {
-    $prefixMap = [
-        'App\\'    => ROOT_PATH . '/app/',
-        'Core\\'   => ROOT_PATH . '/core/',
-        'Config\\' => ROOT_PATH . '/config/',
-    ];
+// Register the Composer autoloader...
+require __DIR__.'/../vendor/autoload.php';
 
-    foreach ($prefixMap as $prefix => $baseDir) {
-        $len = strlen($prefix);
-        if (strncmp($prefix, $class, $len) !== 0) {
-            continue;
-        }
+// Bootstrap Laravel and handle the request...
+/** @var Application $app */
+$app = require_once __DIR__.'/../bootstrap/app.php';
 
-        $relativeClass = substr($class, $len);
-        $file = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
-
-        if (file_exists($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
-
-use Core\Router;
-
-// Instancia o roteador e carrega as rotas
-$router = new Router();
-require_once ROOT_PATH . '/routes/web.php';
-
-// Dispara a requisição
-$router->dispatch($_SERVER['REQUEST_URI'], $_SERVER['REQUEST_METHOD']);
-?>
+$app->handleRequest(Request::capture());
