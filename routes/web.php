@@ -1,14 +1,14 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\Auth\TwoFactorController;
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AltoNivel\AgendaController;
 use App\Http\Controllers\AltoNivel\OrdemCmController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\ControleInterno\ControleInternoController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Integridade\IntegridadeController;
 use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Route;
 
 // Autenticação e Acesso
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -35,8 +35,11 @@ Route::get('/alto-nivel/deliberacoes', [AgendaController::class, 'index'])->name
 // Rotas do Módulo: Assuntos de Alto Nível - Ordens do CM
 Route::prefix('alto-nivel/ordens-cm')->group(function () {
     Route::get('/', [OrdemCmController::class, 'index'])->name('alto-nivel.ordens-cm');
-    Route::get('/novo', [OrdemCmController::class, 'create'])->name('alto-nivel.ordens-cm.novo');
     Route::post('/salvar', [OrdemCmController::class, 'store'])->name('alto-nivel.ordens-cm.store');
+    Route::post('/atualizar/{id}', [OrdemCmController::class, 'update'])->name('alto-nivel.ordens-cm.update');
+    Route::post('/{id}/subsidios', [OrdemCmController::class, 'storeSubsidio'])->name('alto-nivel.ordens-cm.subsidios.store');
+    Route::get('/{id}/subsidios', [OrdemCmController::class, 'getSubsidios'])->name('alto-nivel.ordens-cm.subsidios');
+    Route::get('/{id}/historico', [OrdemCmController::class, 'getHistorico'])->name('alto-nivel.ordens-cm.historico');
 });
 
 // Rotas do Módulo: Controle Interno
@@ -58,4 +61,4 @@ Route::prefix('usuarios')->group(function () {
 
 Route::get('/relatorios/gestao', function () {
     return view('relatorios.gestao');
-    })->name('relatorios.gestao');
+})->name('relatorios.gestao');

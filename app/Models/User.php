@@ -33,4 +33,14 @@ class User extends Authenticatable
     {
         return $this->password_hash;
     }
+
+    public function subsidios()
+    {
+        return $this->hasMany(SubsidioOrdemCm::class, 'id_user', 'id_user');
+    }
+
+    public function historicos()
+    {
+        return $this->hasMany(HistoricoOrdemCm::class, 'id_user', 'id_user');
+    }
 }

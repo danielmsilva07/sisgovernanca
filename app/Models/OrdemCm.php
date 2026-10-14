@@ -2,97 +2,121 @@
 
 namespace App\Models;
 
-use PDO;
-use Config\Database;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class OrdemCm
+class OrdemCm extends Model
 {
-    private PDO $db;
+    protected $table = 'ordens_cm';
+    protected $primaryKey = 'id_ordens_cm';
 
-    public function __construct()
+    protected $fillable = [
+        'nr_ordem_cm',
+        'docum_origem',
+        'data_docum',
+        'id_om_origem',
+        'id_om_resp',
+        'id_sub_lider',
+        'id_sub_apoio',
+        'id_status_ordem',
+        'prazo',
+        'tema_pauta',
+        'determinacao',
+        'evento',
+        'observacao',
+        'data_cumpr',
+    ];
+
+    protected $casts = [
+        'nr_ordem_cm'  => 'integer',
+        'id_sub_apoio' => 'array',
+        'data_docum'   => 'date',
+        'prazo'        => 'date',
+        'data_cumpr'   => 'date',
+    ];
+
+    /**
+     * Relacionamento com OM de Origem
+     */
+    public function omOrigem(): BelongsTo
     {
-        $this->db = Database::getConnection();
+        return $this->belongsTo(OmOrigem::class, 'id_om_origem', 'id_om_origem');
     }
 
-    public function getAll(): array
+    /**
+     * Relacionamento com OM Responsável
+     */
+    public function omResponsavel(): BelongsTo
     {
-        $sql = "SELECT o.*, 
-                       om.sigla_om, 
-                       omr.sigla_om_resp, 
-                       sl.cod_sub_lider, 
-                       so.nome_status_ordem
-                FROM ordem_cm o
-                LEFT JOIN om_origem om ON om.id_om = o.id_om
-                LEFT JOIN om_responsavel omr ON omr.id_om_resp = o.id_om_resp
-                LEFT JOIN subchefia_lider sl ON sl.id_sub_lider = o.id_sub_lider
-                LEFT JOIN status_ordem so ON so.id_status_ordem = o.id_status_ordem
-                ORDER BY o.id_ordem DESC";
-        
-        return $this->db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+        return $this->belongsTo(OmResponsavel::class, 'id_om_resp', 'id_om_resp');
     }
 
-    public function existsNrOrdem(int $nrOrdem): bool
+    /**
+     * Relacionamento com Subchefia Líder
+     */
+    public function subchefiaLider(): BelongsTo
     {
-        $stmt = $this->db->prepare("SELECT COUNT(*) FROM ordem_cm WHERE nr_ordem = :nr_ordem");
-        $stmt->bindValue(':nr_ordem', $nrOrdem, PDO::PARAM_INT);
-        $stmt->execute();
-        return (int)$stmt->fetchColumn() > 0;
+        return $this->belongsTo(SubchefiaLider::class, 'id_sub_lider', 'id_sub_lider');
     }
 
-    public function insert(array $dados): bool
+    /**
+     * Relacionamento com Status da Ordem
+     */
+    public function statusOrdem(): BelongsTo
     {
-        $sql = "INSERT INTO ordem_cm (
-                    nr_ordem, docum_origem, data_docum, id_om, id_om_resp, 
-                    id_sub_lider, id_sub_apoio, id_status_ordem, prazo, 
-                    data_cump, tema_pauta, determinacao, evento, observacao, data_cadastro
-                ) VALUES (
-                    :nr_ordem, :docum_origem, :data_docum, :id_om, :id_om_resp, 
-                    :id_sub_lider, :id_sub_apoio, :id_status_ordem, :prazo, 
-                    :data_cump, :tema_pauta, :determinacao, :evento, :observacao, CURRENT_TIMESTAMP
-                )";
-
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute([
-            ':nr_ordem'        => $dados['nr_ordem'],
-            ':docum_origem'    => $dados['docum_origem'],
-            ':data_docum'      => $dados['data_docum'],
-            ':id_om'           => $dados['id_om'],
-            ':id_om_resp'      => $dados['id_om_resp'],
-            ':id_sub_lider'    => $dados['id_sub_lider'],
-            ':id_sub_apoio'    => $dados['id_sub_apoio'],
-            ':id_status_ordem' => $dados['id_status_ordem'],
-            ':prazo'           => $dados['prazo'],
-            ':data_cump'       => $dados['data_cump'],
-            ':tema_pauta'      => $dados['tema_pauta'],
-            ':determinacao'    => $dados['determinacao'],
-            ':evento'          => $dados['evento'],
-            ':observacao'      => $dados['observacao']
-        ]);
+        return $this->belongsTo(StatusOrdem::class, 'id_status_ordem', 'id_status_ordem');
     }
 
-    // Métodos para carregar os combos
-    public function getOmsOrigem(): array
+    /**
+     * Relacionamento com os Subsídios registrados para a ordem
+     */
+    public function subsidios(): HasMany
     {
-        return $this->db->query("SELECT id_om, nome_om, sigla_om FROM om_origem ORDER BY sigla_om")->fetchAll(PDO::FETCH_ASSOC);
+        return $this->hasMany(SubsidioOrdemCm::class, 'id_ordens_cm', 'id_ordens_cm')
+                    ->orderBy('created_at', 'desc');
     }
 
-    public function getOmsResponsaveis(): array
+    /**
+     * Relacionamento com o Histórico de Auditoria da ordem
+     */
+    public function historicos(): HasMany
     {
-        return $this->db->query("SELECT id_om_resp, nome_om_resp, sigla_om_resp FROM om_responsavel ORDER BY sigla_om_resp")->fetchAll(PDO::FETCH_ASSOC);
+        return $this->hasMany(HistoricoOrdemCm::class, 'id_ordens_cm', 'id_ordens_cm')
+                    ->orderBy('created_at', 'desc');
     }
 
-    public function getSubchefiasLider(): array
+    /**
+     * Retorna a lista formatada de siglas das Subchefias de Apoio selecionadas
+     */
+    public function getSubchefiasApoioSiglasAttribute(): string
     {
-        return $this->db->query("SELECT id_sub_lider, nome_sub_lider, cod_sub_lider FROM subchefia_lider ORDER BY cod_sub_lider")->fetchAll(PDO::FETCH_ASSOC);
+        if (empty($this->id_sub_apoio) || !is_array($this->id_sub_apoio)) {
+            return '-';
+        }
+
+        $siglas = SubchefiaApoio::whereIn('id_sub_apoio', $this->id_sub_apoio)
+            ->pluck('sigla_sub_apoio')
+            ->toArray();
+
+        return !empty($siglas) ? implode(', ', $siglas) : '-';
     }
 
-    public function getSubchefiasApoio(): array
+    /**
+     * Retorna o último número de ordem cadastrado (ou 1 se não houver)
+     */
+    public static function getUltimoNumeroOrdem(): int
     {
-        return $this->db->query("SELECT id_sub_apoio, nome_sub_apoio, cod_sub_apoio FROM subchefia_apoio ORDER BY cod_sub_apoio")->fetchAll(PDO::FETCH_ASSOC);
+        $ultimo = self::max('nr_ordem_cm');
+        return $ultimo !== null ? (int)$ultimo : 1;
     }
 
-    public function getStatusOrdem(): array
+    /**
+     * Retorna o próximo número de ordem sugerido
+     */
+    public static function getProximoNumeroOrdem(): int
     {
-        return $this->db->query("SELECT id_status_ordem, nome_status_ordem FROM status_ordem ORDER BY id_status_ordem")->fetchAll(PDO::FETCH_ASSOC);
+        $ultimo = self::max('nr_ordem_cm');
+        return $ultimo !== null ? ((int)$ultimo + 1) : 1;
     }
 }
